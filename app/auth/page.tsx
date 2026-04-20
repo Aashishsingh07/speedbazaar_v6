@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type SessionUser = {
@@ -8,7 +8,7 @@ type SessionUser = {
   role: "admin" | "user" | "seller";
 };
 
-export default function AuthPage() {
+function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -252,5 +252,13 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading...</div>}>
+      <AuthContent />
+    </Suspense>
   );
 }
