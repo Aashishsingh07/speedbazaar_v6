@@ -1,16 +1,42 @@
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const input = String(searchParams.get("input") || "").trim();
-  const key = process.env.GOOGLE_MAPS_API_KEY;
+  try {
+    const { searchParams } = new URL(req.url);
+    const input = searchParams.get("input");
 
-  if (!input) return NextResponse.json({ predictions: [] });
-  if (!key) return NextResponse.json({ message: "GOOGLE_MAPS_API_KEY is missing.", predictions: [] }, { status: 400 });
+    if (!input) {
+      return NextResponse.json(
+        { success: false, message: "input is required" },
+        { status: 400 }
+      );
+    }
 
-  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&components=country:in&key=${encodeURIComponent(key)}`;
-  const res = await fetch(url);
-  const data = await res.json();
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { success: false, message: "Missing GOOGLE_MAPS_API_KEY" },
+        { status: 500 }
+      );
+    }
 
-  return NextResponse.json({ predictions: data.predictions || [], status: data.status }, { status: res.ok ? 200 : 500 });
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+        input
+      )}&components=country:in&key=${apiKey}`
+    );
+
+    const data = await response.json();
+
+    return NextResponse.json({
+      success: true,
+      predictions: data.predictions || [],
+    });
+  } catch (error) {
+    console.error("Autocomplete error:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch suggestions" },
+      { status: 500 }
+    );
+  }
 }

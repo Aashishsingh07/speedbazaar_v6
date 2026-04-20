@@ -1,23 +1,50 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { createSession, verifyPassword } from "@/lib/auth";
+import { setSession } from "@/lib/session";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password || "");
+    const { email, password } = await req.json();
 
-    if (!email || !password) return NextResponse.json({ message: "Email and password are required." }, { status: 400 });
+    const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD;
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user?.passwordHash || !verifyPassword(password, user.passwordHash)) {
-      return NextResponse.json({ message: "Invalid email or password." }, { status: 401 });
+    if (!adminEmail || !adminPassword) {
+      return NextResponse.json(
+        { success: false, message: "Admin credentials are not configured" },
+        { status: 500 }
+      );
     }
 
-    await createSession(user.id);
-    return NextResponse.json({ ok: true, message: "Login successful.", user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    if (
+      String(email || "").trim().toLowerCase() === adminEmail &&
+      String(password || "") === adminPassword
+    ) {
+      await setSession({
+        email: adminEmail,
+        role: "admin",
+      });
+
+      return NextResponse.json({
+        success: true,
+        user: {
+          email: adminEmail,
+          role: "admin",
+        },
+      });
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Invalid credentials",
+      },
+      { status: 401 }
+    );
   } catch (error) {
-    return NextResponse.json({ message: "Could not log in.", error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
+    console.error("Login error:", error);
+    return NextResponse.json(
+      { success: false, message: "Login failed" },
+      { status: 500 }
+    );
   }
 }
